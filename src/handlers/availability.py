@@ -1,3 +1,10 @@
+"""
+Availability handlers - selecting time slots
+"""
+
+from datetime import datetime, timedelta
+from typing import List, Tuple
+
 from aiogram import Router, F
 from aiogram.types import Message, CallbackQuery
 from aiogram.filters import Command
