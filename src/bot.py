@@ -22,8 +22,6 @@ from handlers import (
     register_admin_handlers
 )
 from utils.scheduler import init_scheduler
-# NEW: Import the finalize function
-from handlers.availability import finalize_availability_and_check_completion
 
 # Logging setup
 logging.basicConfig(
@@ -83,7 +81,7 @@ async def main() -> None:
 
     # Add sessionmaker and bot instance to dispatch context
     dp['sessionmaker'] = sessionmaker
-    dp['bot'] = bot # NEW: Make bot available globally in handlers
+    dp['bot'] = bot
 
     logger.info("✅ Handlers registered")
 
@@ -91,11 +89,6 @@ async def main() -> None:
     scheduler = init_scheduler(bot)
     scheduler.start()
     logger.info("✅ Scheduler started")
-
-    # NEW: Add a post-process hook or manually call finalize after slot save
-    # We need to hook into the callback handler's success path.
-    # Let's modify the handler itself to call finalize after committing.
-    # See the updated availability.py above which adds finalize_availability_and_check_completion
 
     # Start polling
     logger.info("🚀 ChronoGather Bot started polling...")
