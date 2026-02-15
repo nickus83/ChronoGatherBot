@@ -23,6 +23,38 @@ async def cmd_available(message: Message, sessionmaker) -> None:
     """
     await message.answer("ℹ️ This command is deprecated. Use /select to choose an event.")
 
+@router.message(Command('myevents'))
+async def cmd_myevents(message: Message, sessionmaker) -> None:
+    """
+    Show user all events they participate in (responded or not)
+    """
+    async with sessionmaker() as session:
+        user = await get_or_create_user(session, message.from_user)
+
+        # Find all events where user is participant
+        stmt = (
+            select(Event, EventParticipant)
+            .join(EventParticipant)
+            .where(
+                EventParticipant.user_id == user.id
+            )
+            .order_by(Event.created_at.desc())  # Newest first
+        )
+        result = await session.execute(stmt)
+        event_participant_pairs = result.all() # List of (Event, EventParticipant) tuples
+
+        if not event_participant_pairs:
+            await message.answer("📋 You are not participating in any events.")
+            return
+
+        # Build list of events with status
+        event_list = []
+        for event, participant in event_participant_pairs:
+            status = "✅ Responded" if participant.responded else "⏳ Pending"
+            finished_status = " (Finished)" if event.finished else ""
+            event_list.append(f"• <b>{event.title}</b> - {status}{finished_status}")
+
+        await message.answer(f"📅 Your events:\n\n" + "\n".join(event_list))
 
 @router.message(Command('select'))
 async def cmd_select(message: Message, sessionmaker) -> None:
