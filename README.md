@@ -1,40 +1,38 @@
 # ChronoGather Bot
 
-Telegram bot for group scheduling — find common time slots for RPG sessions, meetings, or any group activity. Like Doodle, but inside Telegram.
+Исходный код Telegram-бота [@ChronoGatherBot](https://t.me/ChronoGatherBot) — инструмента для поиска общего времени у группы людей. Аналог Doodle, но полностью внутри Telegram.
 
-> 🎲 Made for tabletop RPG groups (Mothership, D&D, etc.), but works for any event requiring 2+ people coordination.
+> 🎲 Специально заточен под настольные RPG (Mothership, D&D, Киберпанк), но подходит для любых встреч: учёба, работа, походы.
 
-## Features
+---
 
-- ✅ Create events with duration (`/newevent "Mothership S3" 4h`)
-- ✅ Participants mark availability via private calendar UI (no spam in group)
-- ✅ Automatic intersection calculation ("3 people free 15 Feb 19:00–23:00")
-- ✅ Timezone-aware (stores UTC, displays in user's local time)
-- ✅ 24h reminders with confirmation prompt
-- ✅ SQLite by default → seamless migration to PostgreSQL
-- ✅ Self-hosted on your hardware (tested on mini-PCs like mr03)
+## 🇷🇺 Для русскоязычных пользователей
 
-## Quick Start
+### Статус проекта
+Это **рабочий бот**, который уже используется в группах для координации сессий. Исходный код открыт под лицензией **MIT** — вы можете:
+- ✅ Запустить свою копию бота на своём сервере
+- ✅ Модифицировать функционал под свои нужды
+- ✅ Использовать код как основу для своего проекта
 
-### 1. Create bot
-1. Talk to [@BotFather](https://t.me/BotFather)
-2. `/newbot` → name it `ChronoGatherBot` → username `@ChronoGatherBot`
-3. Copy the `BOT_TOKEN` it gives you
+> ⚠️ Официальный бот [@ChronoGatherBot](https://t.me/ChronoGatherBot) управляется автором проекта. Форки — это ваши независимые инстансы.
 
-### 2. Clone & setup (Windows → mr03 workflow)
+### Быстрый старт на Windows (для разработки)
 
 ```powershell
-# On Windows (development)
+# 1. Клонировать репозиторий
 git clone https://github.com/YOUR_GITHUB/chronogather-bot.git
 cd chronogather-bot
 
-# Create virtual environment
+# 2. Создать виртуальное окружение
 python -m venv venv
 .\venv\Scripts\activate
 
-# Install dependencies
+# 3. Установить зависимости
 pip install -r requirements.txt
 
-# Configure
+# 4. Настроить бота
 copy .env.example .env
-notepad .env  # Edit BOT_TOKEN, TIMEZONE=Europe/Moscow
+notepad .env  # Вставить свой BOT_TOKEN от @BotFather
+
+# 5. Запустить
+python -m src.bot
