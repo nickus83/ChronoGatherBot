@@ -133,6 +133,13 @@ async def cmd_newevent(message: Message, sessionmaker) -> None:
                 f"Now each participant should go to private chat with the bot and respond to availability requests."
             )
 
+            # Immediately ask GM to set their availability
+            gm_availability_msg = (
+                f"📅 <b>Your turn, GM!</b>\n"
+                f"Please go to private chat with the bot (@ChronoGatherBot) and select when you can host '{event.title}'."
+            )
+            await message.answer(gm_availability_msg)
+
         except Exception as e:
             await message.answer(f"❌ Failed to create event: {str(e)}")
 
