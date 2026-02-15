@@ -120,3 +120,39 @@ class Availability(Base):
 
     def __repr__(self):
         return f"<Availability(event_id={self.event_id}, user_id={self.user_id}, date={self.date}, {self.time_start}-{self.time_end})>"
+
+# === DATABASE INITIALIZATION FUNCTION ===
+async def init_db(db_url: str) -> None:
+    """
+    Initialize database - create tables if they don't exist
+
+    Args:
+        db_url: Database URL (sqlite:///./db.sqlite3 or postgresql://...)
+    """
+    # Convert to async URL if needed
+    if db_url.startswith('sqlite:///'):
+        db_url = db_url.replace('sqlite:///', 'sqlite+aiosqlite:///')
+    elif db_url.startswith('postgresql://'):
+        db_url = db_url.replace('postgresql://', 'postgresql+asyncpg://')
+
+    from sqlalchemy.ext.asyncio import create_async_engine
+    from sqlalchemy import inspect
+
+    engine = create_async_engine(db_url, echo=False)
+
+    async with engine.begin() as conn:
+        # Check if tables exist
+        if db_url.startswith('sqlite+aiosqlite'):
+            # For SQLite, use sync inspector via run_sync
+            inspector = await conn.run_sync(lambda sync_conn: inspect(sync_conn))
+            existing_tables = await conn.run_sync(lambda sync_conn: inspector.get_table_names())
+        else:
+            # For PostgreSQL, inspector is async-compatible
+            inspector = inspect(engine.sync_engine)
+            existing_tables = inspector.get_table_names()
+
+        if not existing_tables:
+            # Create all tables
+            await conn.run_sync(Base.metadata.create_all)
+
+    await engine.dispose()
