@@ -1,5 +1,6 @@
 """
 Event handlers - creating and managing events
+Also includes completion checking logic.
 """
 
 import re
@@ -7,12 +8,15 @@ from datetime import datetime, timedelta
 from typing import List, Optional, Dict, Any
 
 from aiogram import Router, F
-from aiogram.types import Message
+from aiogram.types import Message, CallbackQuery
 from aiogram.filters import Command
 from aiogram.exceptions import TelegramAPIError
+from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy import select
 
-from database.models import Event, User, EventParticipant, UserRole
+from database.models import Event, User, EventParticipant, Availability, UserRole
 from database.queries import get_or_create_user, create_event_with_participants
+from utils.intersection import calculate_common_slots # Import the new function
 
 router = Router()
 
@@ -133,7 +137,7 @@ async def cmd_newevent(message: Message, sessionmaker) -> None:
                 f"Now each participant should go to private chat with the bot and respond to availability requests."
             )
 
-            # Immediately ask GM to set their availability
+            # NEW: Ask GM to set availability first
             gm_availability_msg = (
                 f"📅 <b>Your turn, GM!</b>\n"
                 f"Please go to private chat with the bot (@ChronoGatherBot) and select when you can host '{event.title}'."
@@ -142,6 +146,61 @@ async def cmd_newevent(message: Message, sessionmaker) -> None:
 
         except Exception as e:
             await message.answer(f"❌ Failed to create event: {str(e)}")
+
+
+# --- NEW FUNCTION: Check Completion and Notify ---
+async def check_and_notify_completion(
+    session: AsyncSession,
+    bot_instance, # Pass the bot instance here
+    event_id: int
+):
+    """
+    Checks if all participants have responded.
+    If yes, calculates intersections and sends notification to the group chat.
+    """
+    # Fetch event
+    event = await session.get(Event, event_id)
+    if not event:
+        print(f"Log: Event {event_id} not found for completion check.")
+        return
+
+    # Fetch participants
+    stmt = select(EventParticipant).where(EventParticipant.event_id == event_id)
+    result = await session.execute(stmt)
+    participants = result.scalars().all()
+
+    total_participants = len(participants)
+    responded_count = sum(1 for p in participants if p.responded)
+
+    print(f"Log: Event {event.title}: {responded_count}/{total_participants} responded.") # Debug log
+
+    if responded_count == total_participants:
+        print(f"Log: All participants responded for event {event_id}. Calculating intersections...") # Debug log
+        # All responded, calculate common slots
+        common_slots = await calculate_common_slots(session, event_id)
+
+        if common_slots:
+            # Format message
+            msg_lines = [f"🎉 <b>Common slots found for '{event.title}'!</b>"]
+            for day, start_t, end_t, count in common_slots:
+                day_str = str(day) if day else "Recurring (Day of Week TBD)"
+                msg_lines.append(f"• {day_str} {start_t.strftime('%H:%M')} - {end_t.strftime('%H:%M')} ({count} people)")
+
+            notification_message = "\n".join(msg_lines)
+        else:
+            notification_message = f"❌ No common slots found for '{event.title}' after everyone responded."
+
+        # Send message to the group chat
+        try:
+            await bot_instance.send_message(chat_id=event.chat_id, text=notification_message)
+            print(f"Log: Notification sent to chat {event.chat_id} for event {event_id}.") # Debug log
+            # Optionally, mark event as finished here
+            # event.finished = True
+            # await session.commit()
+        except TelegramAPIError as e:
+            print(f"Log: Failed to send notification to chat {event.chat_id}: {e}") # Log error
+    else:
+        print(f"Log: Still waiting for {total_participants - responded_count} participants for event {event_id}.") # Debug log
 
 
 def register_event_handlers(dp) -> None:
