@@ -13,7 +13,7 @@ from sqlalchemy import select
 
 from database.models import EventParticipant, Event, Availability
 from database.queries import get_or_create_user
-from keyboards.calendar import generate_calendar_keyboard
+from keyboards.calendar import generate_calendar_keyboard, TimeSlotCallback
 
 router = Router()
 
