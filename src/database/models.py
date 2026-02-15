@@ -84,7 +84,7 @@ class EventParticipant(Base):
 
     # Relationships
     event = relationship('Event', back_populates='participants')
-    user = relationship('User')
+    user = relationship('User', foreign_keys=[user_id])
     inviter = relationship('User', foreign_keys=[invited_by])
 
     def __repr__(self):
