@@ -9,6 +9,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, insert, update
 from sqlalchemy.exc import IntegrityError
 from aiogram.types import User as TelegramUser
+from os import getenv
 
 from database.models import User, Event, EventParticipant, UserRole
 
