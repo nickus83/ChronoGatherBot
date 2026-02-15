@@ -100,11 +100,14 @@ async def cmd_select_number(message: Message, sessionmaker) -> None:
             Availability.user_id == user.id
         )
         slots_db = await session.scalars(slots_stmt)
-        selected_slots = [
-            (slot.time_start.strftime("%H:%M"), slot.time_end.strftime("%H:%M")) if not chosen_event.is_recurring
-            else (slot.day_of_week, slot.time_start.strftime("%H:%M"), slot.time_end.strftime("%H:%M"))
-            for slot in slots_db
-        ]
+        selected_slots = []
+        for slot in slots_db:
+            time_start_str = slot.time_start.strftime("%H:%M") # Convert back to string for display logic
+            time_end_str = slot.time_end.strftime("%H:%M")
+            if chosen_event.is_recurring:
+                selected_slots.append((slot.day_of_week, time_start_str, time_end_str))
+            else:
+                selected_slots.append((time_start_str, time_end_str))
 
         # Show calendar
         kb_builder = generate_calendar_keyboard(chosen_event, selected_slots)
@@ -117,7 +120,7 @@ async def cmd_select_number(message: Message, sessionmaker) -> None:
 @router.callback_query(TimeSlotCallback.filter())
 async def handle_timeslot_selection(
     callback: CallbackQuery,
-    callback_data: TimeSlotCallback,  # <-- ПРАВИЛЬНЫЙ СИНТАКСИС
+    callback_data: TimeSlotCallback, # <-- ПРАВИЛЬНЫЙ СИНТАКСИС
     sessionmaker
 ):
     """
@@ -144,10 +147,10 @@ async def handle_timeslot_selection(
             await callback.answer("❌ Event not found.", show_alert=True)
             return
 
-        # Calculate end time based on event duration
-        start_dt = datetime.strptime(callback_data.time_start, "%H:%M").time()
+        # Calculate end time based on event duration using hour/minute from callback
+        start_time_obj = datetime.min.time().replace(hour=callback_data.hour, minute=callback_data.minute)
         duration_td = timedelta(minutes=event.duration_minutes)
-        start_datetime = datetime.combine(datetime.today(), start_dt)
+        start_datetime = datetime.combine(datetime.today(), start_time_obj)
         end_datetime = start_datetime + duration_td
         end_time = end_datetime.time()
 
@@ -158,7 +161,7 @@ async def handle_timeslot_selection(
                 Availability.user_id == user.id,
                 Availability.date == (datetime.fromisoformat(callback_data.date).date() if callback_data.date else None),
                 Availability.day_of_week == callback_data.day_of_week,
-                Availability.time_start == start_dt,
+                Availability.time_start == start_time_obj,
                 Availability.time_end == end_time
             )
         )
@@ -175,7 +178,7 @@ async def handle_timeslot_selection(
                 user_id=user.id,
                 date=datetime.fromisoformat(callback_data.date).date() if callback_data.date else None,
                 day_of_week=callback_data.day_of_week,
-                time_start=start_dt,
+                time_start=start_time_obj,
                 time_end=end_time
             )
             session.add(availability)
@@ -187,9 +190,11 @@ async def handle_timeslot_selection(
         await session.commit()
 
         if action == "added":
-            await callback.answer(f"✅ Time slot {callback_data.time_start} added!")
+            time_str = start_time_obj.strftime("%H:%M")
+            await callback.answer(f"✅ Time slot {time_str} added!")
         else:
-            await callback.answer(f"❌ Time slot {callback_data.time_start} removed.")
+            time_str = start_time_obj.strftime("%H:%M")
+            await callback.answer(f"❌ Time slot {time_str} removed.")
 
         # Re-fetch user's slots to update calendar
         slots_stmt = select(Availability).where(
@@ -197,11 +202,14 @@ async def handle_timeslot_selection(
             Availability.user_id == user.id
         )
         slots_db = await session.scalars(slots_stmt)
-        selected_slots = [
-            (slot.time_start.strftime("%H:%M"), slot.time_end.strftime("%H:%M")) if not event.is_recurring
-            else (slot.day_of_week, slot.time_start.strftime("%H:%M"), slot.time_end.strftime("%H:%M"))
-            for slot in slots_db
-        ]
+        selected_slots = []
+        for slot in slots_db:
+            time_start_str = slot.time_start.strftime("%H:%M") # Convert back to string for display logic
+            time_end_str = slot.time_end.strftime("%H:%M")
+            if event.is_recurring:
+                selected_slots.append((slot.day_of_week, time_start_str, time_end_str))
+            else:
+                selected_slots.append((time_start_str, time_end_str))
 
         # Re-show calendar to reflect changes
         kb_builder = generate_calendar_keyboard(event, selected_slots)
