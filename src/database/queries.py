@@ -14,7 +14,11 @@ from database.models import User, Event, EventParticipant, UserRole
 
 
 async def get_or_create_user(session: AsyncSession, tg_user: TelegramUser) -> User:
-    """Get or create user record from Telegram user object"""
+    """Get or create user record from Telegram user object, assign role from ADMIN_IDS if applicable"""
+
+    # Получить список админов из .env
+    admin_ids_raw = getenv('ADMIN_IDS', '')
+    admin_ids = [int(x.strip()) for x in admin_ids_raw.split(',') if x.strip().isdigit()]
 
     stmt = select(User).where(User.id == tg_user.id)
     result = await session.execute(stmt)
@@ -27,15 +31,28 @@ async def get_or_create_user(session: AsyncSession, tg_user: TelegramUser) -> Us
             user.last_name = tg_user.last_name
             user.username = tg_user.username
             await session.commit()
+
+        # Проверить, является ли пользователь админом по ID из .env
+        if user.id in admin_ids and user.role != UserRole.ADMIN.value:
+            user.role = UserRole.ADMIN.value
+            await session.commit()
+        elif user.id not in admin_ids and user.role == UserRole.ADMIN.value:
+            # Если ID больше нет в .env, но роль была admin, сбросить до player (опционально)
+            user.role = UserRole.PLAYER.value
+            await session.commit()
+
         return user
 
-    # Create new user
+    # Создать нового пользователя
+    # Проверить, новый ли пользователь админ по ID
+    role = UserRole.ADMIN.value if tg_user.id in admin_ids else UserRole.PLAYER.value
+
     new_user = User(
         id=tg_user.id,
         username=tg_user.username,
         first_name=tg_user.first_name,
         last_name=tg_user.last_name,
-        role=UserRole.PLAYER.value  # Default role
+        role=role
     )
     session.add(new_user)
     await session.commit()
