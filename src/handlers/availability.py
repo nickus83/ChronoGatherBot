@@ -60,20 +60,17 @@ async def cmd_select(message: Message, sessionmaker) -> None:
             f"\n\nSend the number (1-{len(events)}) to proceed."
         )
 
-        # Store available events in state for next step (not implemented here, see below)
 
-
-@router.message(Command('select'))  # Handles numeric input like "1"
+@router.message(F.text.isdigit())  # Handles numeric input like "1" *after* /select was implicitly shown
 async def cmd_select_number(message: Message, sessionmaker) -> None:
     """
     Handle numeric input after /select to choose an event
+    NOTE: This is a simplified approach. A better way is using FSM (aiogram's Finite State Machine).
+    For now, this assumes the user just sent a number right after seeing the list from /select.
     """
     text = message.text.strip()
-    if not text.isdigit():
-        # This handles the original /select command
-        return
-
     choice_num = int(text)
+
     async with sessionmaker() as session:
         user = await get_or_create_user(session, message.from_user)
 
@@ -117,11 +114,10 @@ async def cmd_select_number(message: Message, sessionmaker) -> None:
         )
 
 
-# --- Callback handler remains same ---
 @router.callback_query(TimeSlotCallback.filter())
 async def handle_timeslot_selection(
     callback: CallbackQuery,
-    callback_ TimeSlotCallback,
+    callback_data: TimeSlotCallback,  # <-- ПРАВИЛЬНЫЙ СИНТАКСИС
     sessionmaker
 ):
     """
