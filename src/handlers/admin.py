@@ -7,10 +7,10 @@ from aiogram.types import Message
 from aiogram.filters import Command
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
-from sqlalchemy.sql.functions import func
 from os import getenv
+from sqlalchemy.sql.functions import func
 
-from database.models import Event, User, UserRole
+from database.models import Event, User, EventParticipant, UserRole
 from database.queries import get_or_create_user
 
 router = Router()
@@ -48,6 +48,7 @@ async def cmd_events(message: Message, sessionmaker) -> None:
         event_list = []
         for e in events:
             status = "✅ Finished" if e.is_recurring or e.finished else "⏳ Active"
+            # Correctly import and use func.count
             participant_count_stmt = select(func.count(EventParticipant.id)).where(EventParticipant.event_id == e.id)
             participant_count_result = await session.execute(participant_count_stmt)
             participant_count = participant_count_result.scalar()
